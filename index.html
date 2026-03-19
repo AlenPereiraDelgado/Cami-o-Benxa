@@ -140,30 +140,120 @@
           )
         };
 
-        const STAGES_RAW = [
-          { id: 1, title: "Vuelo a Roma", km: 0, from: "Santiago", to: "Roma", img: "https://images.unsplash.com/photo-1529260830199-42c24126f198?auto=format&fit=crop&w=800&q=80" },
-          { id: 2, title: "Roma - Vaticano", km: 5, from: "Roma", to: "Vaticano", img: "https://images.unsplash.com/photo-1531572753322-ad063cecc140?auto=format&fit=crop&w=800&q=80" },
-          { id: 3, title: "Roma - Campagnano", km: 34, from: "Roma", to: "Campagnano", img: "https://images.unsplash.com/photo-1516244122157-0243283f502c?auto=format&fit=crop&w=800&q=80" },
-          { id: 18, title: "Volastra - Levanto", km: 22, from: "Volastra", to: "Levanto", img: "https://images.unsplash.com/photo-1533130061792-64b345e4a833?auto=format&fit=crop&w=800&q=80" },
-          { id: 62, title: "SJPP - Roncesvalles", km: 26, from: "SJPP", to: "Roncesvalles", img: "https://images.unsplash.com/photo-1621245785097-024538803a67?auto=format&fit=crop&w=800&q=80" },
-          { id: 98, title: "Cee - Fisterra", km: 12, from: "Cee", to: "Fisterra", img: "https://images.unsplash.com/photo-1563143247-49405788f8d0?auto=format&fit=crop&w=800&q=80" },
-          { id: 99, title: "Compostela - Casa", km: 0, from: "Santiago", to: "Casa", img: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800&q=80" }
-        ];
+        const ALL_STAGES = [
+          // --- ROMA & VATICANO ---
+          { id: '1', date: '10 ABR', day: 'V1', title: 'Voo a Roma ✈️', km: 0, steps: 0, isKey: true },
+          { id: '2', date: '11 ABR', day: 'S2', title: 'Día Roma-Vaticano 🏛️', km: 0, steps: 0, isKey: true },
+          
+          // --- VÍA FRANCÍGENA (ITALIA) ---
+          { id: '3', date: '12 ABR', day: 'D3', title: 'Roma - Campagnano', km: 34, steps: 42500 },
+          { id: '4', date: '13 ABR', day: 'L4', title: 'Campagnano - Sutri', km: 27, steps: 33750 },
+          { id: '5', date: '14 ABR', day: 'M5', title: 'Sutri - Viterbo', km: 31, steps: 38750 },
+          { id: '6', date: '15 ABR', day: 'X6', title: 'Viterbo - Bolsena', km: 32, steps: 40000 },
+          { id: '7', date: '16 ABR', day: 'J7', title: 'Bolsena - Acquapendente', km: 19, steps: 23750 },
+          { id: '8', date: '17 ABR', day: 'V8', title: 'Acquapendente - Radicofani', km: 23, steps: 28750 },
+          { id: '9', date: '18 ABR', day: 'S9', title: 'Radicofani - S. Quirico d’Orcia', km: 27, steps: 33750 },
+          { id: '10', date: '19 ABR', day: 'D10', title: 'S. Quirico d’Orcia - Ponte d’Arbia', km: 24, steps: 30000 },
+          { id: '11', date: '20 ABR', day: 'L11', title: 'Ponte d’Arbia - Siena', km: 23, steps: 28750 },
+          { id: '12', date: '21 ABR', day: 'M12', title: 'Siena - San Gimignano', km: 36, steps: 45000 },
+          { id: '13', date: '22 ABR', day: 'X13', title: 'S. Gimignano - San Miniato', km: 36, steps: 45000 },
+          { id: '14', date: '23 ABR', day: 'J14', title: 'S. Miniato - Lucca', km: 37, steps: 46250 },
+          { id: '15', date: '24 ABR', day: 'V15', title: 'Lucca - Camaiore', km: 25, steps: 31250 },
+          { id: '16', date: '25 ABR', day: 'S16', title: 'Camaiore - Sarzana', km: 37, steps: 46250 },
+          { id: '17', date: '26 ABR', day: 'D17', title: 'Sarzana - Volastra', km: 33, steps: 41250 },
 
-        const ALL_STAGES = Array.from({ length: 99 }, (_, i) => {
-          const id = i + 1;
-          const date = new Date(2025, 3, 10);
-          date.setDate(date.getDate() + i);
-          const dateStr = date.toISOString().split('T')[0];
-          const existing = STAGES_RAW.find(s => s.id === id);
-          const km = existing ? existing.km : 25;
-          const steps = km * 1320;
-          return {
-            ...(existing || { id, title: `Etapa ${id}`, km, img: `https://images.unsplash.com/photo-${1500000000000 + id}?auto=format&fit=crop&w=800&q=80`, from: "Origen", to: "Destino" }),
-            date: dateStr,
-            steps
-          };
-        });
+          // --- VÍA DE LA COSTA (ITALIA) ---
+          { id: '18', date: '27 ABR', day: 'L18', title: 'Volastra - Levanto', km: 22, steps: 27500 },
+          { id: '19', date: '28 ABR', day: 'M19', title: 'Levanto - Sestri', km: 34, steps: 42500 },
+          { id: '20', date: '29 ABR', day: 'X20', title: 'Sestri - Camogli', km: 31, steps: 38750 },
+          { id: '21', date: '30 ABR', day: 'J21', title: 'Camogli - Génova', km: 20, steps: 25000 },
+          { id: '22', date: '01 MAY', day: 'V22', title: 'Génova - Varazze', km: 35.2, steps: 44000 },
+          { id: '23', date: '02 MAY', day: 'S23', title: 'Varazze - Noli', km: 28.1, steps: 35125 },
+          { id: '24', date: '03 MAY', day: 'D24', title: 'Noli - Loano', km: 28.9, steps: 36125 },
+          { id: '25', date: '04 MAY', day: 'L25', title: 'Loano - Andora', km: 26, steps: 32500 },
+          { id: '26', date: '05 MAY', day: 'M26', title: 'Andora - Torraza', km: 30.5, steps: 38125 },
+          { id: '27', date: '06 MAY', day: 'X27', title: 'Torraza - Sanremo', km: 30.7, steps: 38375 },
+          { id: '28', date: '07 MAY', day: 'J28', title: 'Sanremo - Menton (Francia 🇫🇷)', km: 28, steps: 35000 },
+
+          // --- VÍA AURELIA (FRANCIA) ---
+          { id: '29', date: '08 MAY', day: 'V29', title: 'Menton - Niza', km: 28, steps: 35000 },
+          { id: '30', date: '09 MAY', day: 'S30', title: 'NIZA CHECK-POINT 😎', km: 0, steps: 0, isKey: true },
+          { id: '31', date: '10 MAY', day: 'D31', title: 'Niza - Theoule sur mer', km: 42, steps: 52500 },
+          { id: '32', date: '11 MAY', day: 'L32', title: 'Saint Raphael - Le Muy', km: 23, steps: 28750 },
+          { id: '33', date: '12 MAY', day: 'M33', title: 'Le Muy - Abbaye du Thoronet', km: 30, steps: 37500 },
+          { id: '34', date: '13 MAY', day: 'X34', title: 'Thoronet - Le Val', km: 18, steps: 22500 },
+          { id: '35', date: '14 MAY', day: 'J35', title: 'Le Val - Pourrieres', km: 32, steps: 40000 },
+          { id: '36', date: '15 MAY', day: 'V36', title: 'Pourrieres - Aix en Provence', km: 26, steps: 32500 },
+          { id: '37', date: '16 MAY', day: 'S37', title: 'Aix en Provence - Salon', km: 33, steps: 41250 },
+          { id: '38', date: '17 MAY', day: 'D38', title: 'Salón de Provence - Arles', km: 40, steps: 50000 },
+
+          // --- VÍA TOLOSANA (FRANCIA) ---
+          { id: '39', date: '18 MAY', day: 'L39', title: 'Arles - Saint Gilles', km: 19, steps: 23750 },
+          { id: '40', date: '19 MAY', day: 'M40', title: 'Saint Gilles - Gallargues', km: 26, steps: 32500 },
+          { id: '41', date: '20 MAY', day: 'X41', title: 'Gallargues - Montpellier', km: 37, steps: 46250 },
+          { id: '42', date: '21 MAY', day: 'J42', title: 'Montpellier - St Jean de Fos', km: 33, steps: 41250 },
+          { id: '43', date: '22 MAY', day: 'V43', title: 'St Jean de Fos - Lodeve', km: 27, steps: 33750 },
+          { id: '44', date: '23 MAY', day: 'S44', title: 'Lodeve - St Gervais', km: 34, steps: 42500 },
+          { id: '45', date: '24 MAY', day: 'D45', title: 'St Gervais - Murat sur Vebre', km: 20, steps: 25000 },
+          { id: '46', date: '25 MAY', day: 'L46', title: 'Murat sur Vebre - Angles', km: 40, steps: 50000 },
+          { id: '47', date: '26 MAY', day: 'M47', title: 'Angles - Castres', km: 40, steps: 50000 },
+          { id: '48', date: '27 MAY', day: 'X48', title: 'Castres - Revel', km: 27, steps: 33750 },
+          { id: '49', date: '28 MAY', day: 'J49', title: 'Revel - Renneville', km: 28, steps: 35000 },
+          { id: '50', date: '29 MAY', day: 'V50', title: 'Renneville - Toulouse', km: 37, steps: 46250 },
+          { id: '51', date: '30 MAY', day: 'S51', title: 'Toulouse - L’Isle Jourdain', km: 33, steps: 41250 },
+          { id: '52', date: '31 MAY', day: 'D52', title: 'Jourdain - Auch', km: 43, steps: 53750 },
+          { id: '53', date: '01 JUN', day: 'L53', title: 'Auch - L’Isle de Noé', km: 18, steps: 22500 },
+          { id: '54', date: '02 JUN', day: 'M54', title: 'L’Isle de Noé - Marciac', km: 26, steps: 32500 },
+          { id: '55', date: '03 JUN', day: 'X55', title: 'Marciac - Anoye', km: 34, steps: 42500 },
+          { id: '56', date: '04 JUN', day: 'J56', title: 'Anoye - Lescar', km: 28, steps: 35000 },
+          { id: '57', date: '05 JUN', day: 'V57', title: 'Lescar - Oloron Ste Marie', km: 27, steps: 33750 },
+          { id: '58', date: '06 JUN', day: 'S58', title: 'Oloron - Mauléon - L’Hôpital', km: 23.3, steps: 29125 },
+          { id: '59', date: '07 JUN', day: 'D59', title: 'L’Hôpital - St Just-Ibarre', km: 39.5, steps: 49375 },
+          { id: '60', date: '08 JUN', day: 'L60', title: 'St Just-Ibarre - SJPP', km: 23.8, steps: 29750 },
+          { id: '61', date: '09 JUN', day: 'M61', title: 'SJPP CHECK POINT 😎', km: 0, steps: 0, isKey: true },
+
+          // --- CAMINO FRANCÉS (ESPAÑA) ---
+          { id: '62', date: '10 JUN', day: 'X62', title: 'SJPP - Roncesvalles', km: 25.7, steps: 32125 },
+          { id: '63', date: '11 JUN', day: 'J63', title: 'Roncesvalles - Zubiri', km: 21.5, steps: 26875 },
+          { id: '64', date: '12 JUN', day: 'V64', title: 'Zubiri - Iruña', km: 20.4, steps: 25500 },
+          { id: '65', date: '13 JUN', day: 'S65', title: 'Iruña - Puente la Reina', km: 24, steps: 30000 },
+          { id: '66', date: '14 JUN', day: 'D66', title: 'Puente la Reina - Estella', km: 22, steps: 27500 },
+          { id: '67', date: '15 JUN', day: 'L67', title: 'Estella - Torres del Río', km: 29, steps: 36250 },
+          { id: '68', date: '16 JUN', day: 'M68', title: 'Torres del Río - Logroño', km: 20, steps: 25000 },
+          { id: '69', date: '17 JUN', day: 'X69', title: 'Logroño - Nájera', km: 29.6, steps: 37000 },
+          { id: '70', date: '18 JUN', day: 'J70', title: 'Nájera - Sto. Domingo', km: 22, steps: 27500 },
+          { id: '71', date: '19 JUN', day: 'V71', title: 'Sto. Domingo - Belorado', km: 22.7, steps: 28375 },
+          { id: '72', date: '20 JUN', day: 'S72', title: 'Belorado - Agés', km: 27.4, steps: 34250 },
+          { id: '73', date: '21 JUN', day: 'D73', title: 'Agés - Burgos', km: 23, steps: 28750 },
+          { id: '74', date: '22 JUN', day: 'L74', title: 'Burgos - Hontanas', km: 31, steps: 38750 },
+          { id: '75', date: '23 JUN', day: 'M75', title: 'Hontanas - Boadilla', km: 28.5, steps: 35625 },
+          { id: '76', date: '24 JUN', day: 'X76', title: 'Boadilla - Carrión', km: 24.6, steps: 30750 },
+          { id: '77', date: '25 JUN', day: 'J77', title: 'Carrión - Terradillo', km: 26.6, steps: 33250 },
+          { id: '78', date: '26 JUN', day: 'V78', title: 'Terradillo - Burgo Ranero', km: 30.6, steps: 38250 },
+          { id: '79', date: '27 JUN', day: 'S79', title: 'Burgo Ranero - León', km: 37.1, steps: 46375 },
+          { id: '80', date: '28 JUN', day: 'D80', title: 'CHECK POINT LEÓN 😎', km: 0, steps: 0, isKey: true },
+          { id: '81', date: '29 JUN', day: 'L81', title: 'León - San Martín del Camino', km: 25.9, steps: 32375 },
+          { id: '82', date: '30 JUN', day: 'M82', title: 'San Martín del Camino - Astorga', km: 24.2, steps: 30250 },
+          { id: '83', date: '01 JUL', day: 'X83', title: 'Astorga - Foncebadón', km: 25.9, steps: 32375 },
+          { id: '84', date: '02 JUL', day: 'J84', title: 'Foncebadón - Ponferrada', km: 27.3, steps: 34125 },
+          { id: '85', date: '03 JUL', day: 'V85', title: 'Ponferrada - Vilafranca', km: 24.1, steps: 30125 },
+          { id: '86', date: '04 JUL', day: 'S86', title: 'Vilafranca - O Cebreiro', km: 28.4, steps: 35500 },
+          { id: '87', date: '05 JUL', day: 'D87', title: 'O Cebreiro - Triacastela', km: 21.1, steps: 26375 },
+          { id: '88', date: '06 JUL', day: 'L88', title: 'Triacastela - Sarria', km: 18.3, steps: 22875 },
+          { id: '89', date: '07 JUL', day: 'M89', title: 'Sarria - Portomarín', km: 22.4, steps: 28000 },
+          { id: '90', date: '08 JUL', day: 'X90', title: 'Portomarín - Palas de Rei', km: 25, steps: 31250 },
+          { id: '91', date: '09 JUL', day: 'J91', title: 'Palas de Rei - Arzúa', km: 28.8, steps: 36000 },
+          { id: '92', date: '10 JUL', day: 'V92', title: 'Arzúa - O Pedrouzo', km: 19.1, steps: 23875 },
+          { id: '93', date: '11 JUL', day: 'S93', title: 'O Pedrouzo - COMPOSTELA 🏁', km: 20, steps: 25000, isKey: true },
+          { id: '94', date: '12 JUL', day: 'D94', title: 'CHECK POINT COMPOSTELA 😎', km: 0, steps: 0, isKey: true },
+
+          // --- FISTERRA ---
+          { id: '95', date: '13 JUL', day: 'L95', title: 'Compostela - Noia', km: 40, steps: 50000 },
+          { id: '96', date: '14 JUL', day: 'M96', title: 'Noia - Muros', km: 32, steps: 40000 },
+          { id: '97', date: '15 JUL', day: 'X97', title: 'Muros - Cee', km: 32, steps: 40000 },
+          { id: '98', date: '16 JUL', day: 'J98', title: 'Cee - Fisterra 🌊', km: 12, steps: 15000, isKey: true },
+          { id: '99', date: '17 JUL', day: 'V99', title: 'VOLTA A CASA 🩵', km: 0, steps: 0, isKey: true },
+        ];
 
         // --- RESTAURANDO AVATAR PELOCHO ---
         const PeregrinoAvatar = ({ progress }) => {
