@@ -587,20 +587,20 @@
                 <div className="grid grid-cols-1 gap-6">
                   {currentList.map(stage => (
                     <div key={stage.id} onClick={() => setSelectedStage(stage)} className="group relative overflow-hidden bg-white rounded-[2.5rem] border border-slate-100 shadow-sm transition-all cursor-pointer active:scale-[0.98]">
-                      <div className="relative h-56 w-full overflow-hidden">
-                        <img src={stage.img} className="w-full h-full object-cover" loading="lazy" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent" />
-                        <div className="absolute bottom-5 left-6 right-6 flex justify-between items-end">
-                          <div className="text-left">
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className="bg-white/20 backdrop-blur-md text-white text-[9px] font-black px-3 py-1 rounded-md uppercase tracking-widest border border-white/20">{stage.date}</span>
-                              <span className="bg-black/40 backdrop-blur-md text-white text-[9px] font-black px-3 py-1 rounded-md uppercase tracking-widest">{`DÍA ${stage.id}`}</span>
+                        <div className="relative h-56 w-full overflow-hidden">
+                          <img src={stage.img} className="absolute inset-0 w-full h-full object-cover" loading="lazy" alt={stage.title} />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                          <div className="absolute bottom-5 left-6 right-6 flex justify-between items-end">
+                            <div className="text-left relative z-10">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="bg-white/20 backdrop-blur-md text-white text-[10px] font-black px-3 py-1 rounded-md uppercase tracking-widest border border-white/20">{stage.date}</span>
+                                <span className="bg-black/60 backdrop-blur-md text-white text-[10px] font-black px-3 py-1 rounded-md uppercase tracking-widest">{`DÍA ${stage.id}`}</span>
+                              </div>
+                              <h3 className="text-2xl font-black text-white leading-none uppercase italic tracking-tighter drop-shadow-lg">{stage.title}</h3>
                             </div>
-                            <h3 className="text-xl font-black text-white leading-none uppercase italic tracking-tighter">{stage.title}</h3>
+                            <button onClick={(e) => { e.stopPropagation(); setCompletedStages(prev => { const ns = {...prev}; if(ns[stage.id]) delete ns[stage.id]; else ns[stage.id]=true; return ns; }); }} className={`relative z-10 p-4 rounded-2xl transition-all shadow-2xl ${completedStages[stage.id] ? "bg-emerald-500 text-white" : "bg-white/10 backdrop-blur-md text-white border border-white/20"}`}><CheckCircle2 size={24} /></button>
                           </div>
-                          <button onClick={(e) => { e.stopPropagation(); setCompletedStages(prev => { const ns = {...prev}; if(ns[stage.id]) delete ns[stage.id]; else ns[stage.id]=true; return ns; }); }} className={`p-4 rounded-2xl transition-all shadow-2xl ${completedStages[stage.id] ? "bg-emerald-500 text-white" : "bg-white/10 backdrop-blur-md text-white border border-white/20"}`}><CheckCircle2 size={24} /></button>
                         </div>
-                      </div>
                       <div className="p-6 flex items-center justify-between">
                         <div className="flex items-center gap-4">
                           <div className="flex items-center gap-1.5"><Compass size={16} className="text-amber-500" /><span className="text-[10px] font-black text-slate-800 uppercase tracking-widest">{`${stage.km} KM`}</span></div>
