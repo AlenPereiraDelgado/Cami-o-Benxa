@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camiño Benxa</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Playfair+Display:ital,wght@0,700;1,900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-serif { font-family: 'Playfair Display', serif; }
+        @keyframes elegant-fw { 
+            0% { transform: scale(0.1); opacity: 0; filter: blur(2px); } 
+            30% { opacity: 0.9; filter: blur(4px); } 
+            100% { transform: scale(3.5); opacity: 0; filter: blur(10px); } 
+        } 
+        .fw { 
+            position: absolute; border-radius: 50%; 
+            background: radial-gradient(circle, #FFFFFF 0%, #FFDF00 30%, #B8860B 60%, transparent 80%); 
+            mix-blend-mode: screen; 
+            animation: elegant-fw 2.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite; 
+        }
+    </style>
+</head>
+<body class="bg-[#F8F9FA]">
+    <div id="root"></div>
+
+    <!-- Import Map to handle CDNs cleanly -->
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom": "https://esm.sh/react-dom@18.2.0/client",
+        "lucide-react": "https://esm.sh/lucide-react@0.263.1",
+        "firebase/app": "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
+        "firebase/auth": "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js",
+        "firebase/firestore": "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"
+      }
+    }
+    </script>
+
+    <script type="text/babel" data-type="module">
+        import React, { useState, useEffect, useMemo } from 'react';
+        import ReactDOM from 'react-dom';
+        import { 
+          MapPin, Footprints, Navigation, Info, Compass, CheckCircle2,
+          X, ChevronRight, ArrowRight, ListTodo, History, RefreshCcw,
+          Map, Radio
+        } from 'lucide-react';
+        import { initializeApp } from 'firebase/app';
+        import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+        import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
+
+        // --- MOCK FIREBASE CONFIG FOR LOCAL PREVIEW ---
+        const firebaseConfig = (typeof __firebase_config !== 'undefined' && __firebase_config !== '') 
+            ? JSON.parse(__firebase_config) 
+            : { apiKey: "mock-key", authDomain: "mock.firebaseapp.com", projectId: "mock-proj" };
+
+        let app, auth, db;
+        try {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+        } catch (e) {
+            console.warn("Firebase initialization failed, using mock data mode", e);
+        }
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'camino-app-default';
+
+        // --- UTILIDADES ---
+        const getMesEspanol = (dateStr) => {
+          const meses = ["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"];
+          const mIdx = parseInt(dateStr.split('-')[1]) - 1;
+          return meses[mIdx];
+        };
+
+        // --- DATOS DEL MAPA VECTORIAL ---
+        const projX = (lng) => ((lng + 12) / 30) * 100;
+        const projY = (lat) => ((47 - lat) / 15) * 50;
+
+        const landCoords = [
+          [-9.3, 43.0], [-9.2, 42.5], [-8.9, 42.0], [-8.8, 41.5], [-8.7, 41.0], [-9.0, 40.5], 
+          [-9.4, 39.5], [-9.5, 38.7], [-9.0, 38.0], [-8.5, 37.5], [-9.0, 37.0], [-8.0, 37.0], [-7.5, 37.1],
+          [-7.0, 37.2], [-6.5, 36.7], [-6.0, 36.2], [-5.6, 36.0], [-5.0, 36.4], [-4.5, 36.5], 
+          [-4.0, 36.7], [-3.0, 36.7], [-2.0, 36.8], [-1.0, 37.6], [-0.5, 38.0], [0.2, 38.5], 
+          [0.0, 39.0], [-0.3, 39.5], [0.0, 40.0], [0.5, 40.5], [1.0, 41.0], [2.0, 41.3], [2.5, 41.6], [3.2, 42.0],
+          [3.0, 42.5], [3.5, 43.0], [4.0, 43.5], [4.5, 43.4], [5.3, 43.2], [6.0, 43.1], [6.5, 43.3], [7.0, 43.5], [7.4, 43.7],
+          [8.0, 43.8], [8.9, 44.4], [9.5, 44.3], [10.0, 44.0], [10.5, 43.0], [11.0, 42.5], [11.5, 42.2], 
+          [12.0, 41.8], [12.5, 41.5], [13.0, 41.2], [13.5, 40.8], [14.0, 40.5], [14.5, 40.0], [15.0, 40.0], 
+          [15.5, 38.5], [16.0, 38.0],
+          [16.5, 38.5], [17.0, 39.0], [17.5, 39.5], [18.0, 40.0], [17.0, 41.0], [16.0, 41.5], 
+          [15.0, 42.0], [14.0, 42.5], [13.0, 43.5], [12.5, 44.0], [12.0, 45.0], [13.0, 45.5], [14.0, 45.5],
+          [18.0, 48.0], [-12.0, 48.0],
+          [-5.0, 48.0], [-4.0, 47.5], [-3.0, 47.2], [-2.0, 47.0], [-1.5, 46.5], [-1.2, 46.0], 
+          [-1.0, 45.5], [-1.5, 44.5], [-1.8, 43.4],
+          [-2.0, 43.3], [-3.0, 43.4], [-4.0, 43.5], [-5.0, 43.5], [-6.0, 43.6], [-7.0, 43.6], [-8.0, 43.7]
+        ];
+
+        const mallorcaCoords = [[2.4, 39.5], [3.4, 39.8], [3.2, 39.3], [2.6, 39.3]];
+        const ibizaCoords = [[1.2, 38.9], [1.6, 39.0], [1.4, 38.8]];
+        const corsicaCoords = [[8.5, 42.5], [9.5, 42.8], [9.2, 41.5], [8.8, 41.5]];
+        const sardiniaCoords = [[8.8, 41.2], [9.7, 41.0], [9.5, 39.0], [8.3, 39.0]];
+
+        const landPath = "M " + landCoords.map(p => `${projX(p[0])},${projY(p[1])}`).join(" L ") + " Z";
+        const islandsPath = [mallorcaCoords, ibizaCoords, corsicaCoords, sardiniaCoords]
+          .map(island => "M " + island.map(p => `${projX(p[0])},${projY(p[1])}`).join(" L ") + " Z")
+          .join(" ");
+
+        const keyCoords = [
+          { name: 'Roma', lng: 12.5, lat: 41.9, labelOffset: [1, 1], anchor: 'start' },
+          { name: 'Siena', lng: 11.3, lat: 43.3, labelOffset: [1, 1], anchor: 'start' },
+          { name: 'Génova', lng: 8.9, lat: 44.4, labelOffset: [0, -1], anchor: 'middle' },
+          { name: 'Mónaco', lng: 7.4, lat: 43.7, labelOffset: [0, 2], anchor: 'middle' },
+          { name: 'Marsella', lng: 5.3, lat: 43.3, labelOffset: [0, 2], anchor: 'middle' },
+          { name: 'Toulouse', lng: 3.8, lat: 43.6, labelOffset: [0, -1], anchor: 'middle' },
+          { name: 'SJPP', lng: -1.2, lat: 43.1, labelOffset: [0, -1], anchor: 'middle' },
+          { name: 'Pamplona', lng: -1.6, lat: 42.8, labelOffset: [1, 1.5], anchor: 'start' },
+          { name: 'Burgos', lng: -3.7, lat: 42.3, labelOffset: [0, 2], anchor: 'middle' },
+          { name: 'León', lng: -5.5, lat: 42.6, labelOffset: [0, -1], anchor: 'middle' },
+          { name: 'Ponferrada', lng: -6.6, lat: 42.5, labelOffset: [0, 2], anchor: 'middle' },
+          { name: 'Santiago', lng: -8.54, lat: 42.88, labelOffset: [-1.2, -1], anchor: 'end' },
+          { name: 'Noia', lng: -8.89, lat: 42.78, labelOffset: [0, 2.5], anchor: 'middle' },
+          { name: 'Fisterra', lng: -9.27, lat: 42.90, type: 'finish', labelOffset: [-1.2, 0.5], anchor: 'end' }
+        ];
+
+        const stagePoints = [];
+        const dist = (p1, p2) => Math.sqrt(Math.pow(p2.lng - p1.lng, 2) + Math.pow(p2.lat - p1.lat, 2));
+        let totalLen = 0;
+        for (let i = 0; i < keyCoords.length - 1; i++) totalLen += dist(keyCoords[i], keyCoords[i + 1]);
+
+        const step = totalLen / 98;
+        let currentSeg = 0;
+        let segmentStartDist = 0;
+
+        for (let i = 0; i < 99; i++) {
+          if (i === 98) { stagePoints.push({ lng: keyCoords[keyCoords.length - 1].lng, lat: keyCoords[keyCoords.length - 1].lat }); break; }
+          const targetDist = i * step;
+          while (currentSeg < keyCoords.length - 1) {
+            const d = dist(keyCoords[currentSeg], keyCoords[currentSeg + 1]);
+            if (segmentStartDist + d >= targetDist || currentSeg === keyCoords.length - 2) {
+              const t = d === 0 ? 0 : (targetDist - segmentStartDist) / d;
+              const lng = keyCoords[currentSeg].lng + (keyCoords[currentSeg + 1].lng - keyCoords[currentSeg].lng) * Math.max(0, Math.min(1, t));
+              const lat = keyCoords[currentSeg].lat + (keyCoords[currentSeg + 1].lat - keyCoords[currentSeg].lat) * Math.max(0, Math.min(1, t));
+              stagePoints.push({ lng, lat });
+              break;
+            } else { segmentStartDist += d; currentSeg++; }
+          }
+        }
+
+        const MapIcons = {
+          finish: (x, y) => (
+            <g transform={`translate(${x}, ${y}) scale(0.15)`} key="finish">
+              <path d="M-6 10 L-6 -10 L-6 -10 L4 -12 L4 -4 L-6 -2" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinejoin="round" />
+              <rect x="-6" y="-10" width="5" height="4" fill="#000" />
+              <rect x="-1" y="-10" width="5" height="4" fill="#fff" />
+              <rect x="-6" y="-6" width="5" height="4" fill="#fff" />
+              <rect x="-1" y="-6" width="5" height="4" fill="#000" />
+            </g>
+          )
+        };
+
+        const STAGES_RAW = [
+          { id: 1, title: "Vuelo a Roma", km: 0, from: "Santiago", to: "Roma", img: "https://images.unsplash.com/photo-1529260830199-42c24126f198?auto=format&fit=crop&w=800&q=80" },
+          { id: 2, title: "Roma - Vaticano", km: 5, from: "Roma", to: "Vaticano", img: "https://images.unsplash.com/photo-1531572753322-ad063cecc140?auto=format&fit=crop&w=800&q=80" },
+          { id: 3, title: "Roma - Campagnano", km: 34, from: "Roma", to: "Campagnano", img: "https://images.unsplash.com/photo-1516244122157-0243283f502c?auto=format&fit=crop&w=800&q=80" },
+          { id: 18, title: "Volastra - Levanto", km: 22, from: "Volastra", to: "Levanto", img: "https://images.unsplash.com/photo-1533130061792-64b345e4a833?auto=format&fit=crop&w=800&q=80" },
+          { id: 62, title: "SJPP - Roncesvalles", km: 26, from: "SJPP", to: "Roncesvalles", img: "https://images.unsplash.com/photo-1621245785097-024538803a67?auto=format&fit=crop&w=800&q=80" },
+          { id: 98, title: "Cee - Fisterra", km: 12, from: "Cee", to: "Fisterra", img: "https://images.unsplash.com/photo-1563143247-49405788f8d0?auto=format&fit=crop&w=800&q=80" },
+          { id: 99, title: "Compostela - Casa", km: 0, from: "Santiago", to: "Casa", img: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800&q=80" }
+        ];
+
+        const ALL_STAGES = Array.from({ length: 99 }, (_, i) => {
+          const id = i + 1;
+          const date = new Date(2025, 3, 10);
+          date.setDate(date.getDate() + i);
+          const dateStr = date.toISOString().split('T')[0];
+          const existing = STAGES_RAW.find(s => s.id === id);
+          const km = existing ? existing.km : 25;
+          const steps = km * 1320;
+          return {
+            ...(existing || { id, title: `Etapa ${id}`, km, img: `https://images.unsplash.com/photo-${1500000000000 + id}?auto=format&fit=crop&w=800&q=80`, from: "Origen", to: "Destino" }),
+            date: dateStr,
+            steps
+          };
+        });
+
+        // --- RESTAURANDO AVATAR PELOCHO ---
+        const PeregrinoAvatar = ({ progress }) => {
+          const isStubble = progress >= 10;
+          const isBuzzcut = progress >= 20; 
+          const isBeardShort = progress >= 35; 
+          const isHairMedium = progress >= 50;
+          const isBeardMedium = progress >= 65;
+          const isHairLong = progress >= 75;
+          const isBeardLong = progress >= 85;
+          const isPelocho = progress >= 95; 
+
+          return (
+            <div className="relative w-[76px] h-[76px] bg-white rounded-[1.5rem] border-2 border-slate-100 shadow-xl overflow-hidden flex items-center justify-center shrink-0">
+              <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-sm transition-all duration-300">
+                <rect x="40" y="70" width="20" height="20" fill="#EDBA9A" />
+                {!isPelocho && isHairLong && <path d="M 15 40 L 15 80 Q 50 95 85 80 L 85 40 Z" fill="#4B2C20" />}
+                <circle cx="50" cy="45" r="30" fill="#FFCCAB" />
+                {isPelocho ? (
+                  <g>
+                    <circle cx="50" cy="50" r="44" fill="#4B2C20" />
+                    <circle cx="40" cy="48" r="3.5" fill="#fff" opacity="0.9" />
+                    <circle cx="60" cy="48" r="3.5" fill="#fff" opacity="0.9" />
+                    <circle cx="40" cy="48" r="1.5" fill="#000" />
+                    <circle cx="60" cy="48" r="1.5" fill="#000" />
+                  </g>
+                ) : (
+                  <g>
+                    {isHairLong ? <path d="M 18 40 Q 20 5 50 5 Q 80 5 82 40 Q 50 25 18 40 Z" fill="#4B2C20" />
+                     : isHairMedium ? <path d="M 22 45 Q 22 15 50 15 Q 78 15 78 45 Q 50 30 22 45 Z" fill="#4B2C20" />
+                     : isBuzzcut ? <path d="M 24 45 Q 24 18 50 18 Q 76 18 76 45 Q 50 35 24 45 Z" fill="#4B2C20" opacity="0.8" /> : null}
+
+                    <circle cx="40" cy="45" r="3" fill="#333" />
+                    <circle cx="60" cy="45" r="3" fill="#333" />
+
+                    {isBeardLong ? (
+                      <g><path d="M 25 55 Q 25 100 50 105 Q 75 100 75 55 Q 60 68 50 68 Q 40 68 25 55 Z" fill="#4B2C20" />
+                         <path d="M 38 56 Q 50 52 62 56 Q 50 60 38 56 Z" fill="#4B2C20" /></g>
+                    ) : isBeardMedium ? (
+                      <g><path d="M 25 55 Q 25 85 50 90 Q 75 85 75 55 Q 60 68 50 68 Q 40 68 25 55 Z" fill="#4B2C20" />
+                         <path d="M 40 56 Q 50 53 60 56 Q 50 59 40 56 Z" fill="#4B2C20" /></g>
+                    ) : isBeardShort ? (
+                      <g><path d="M 25 55 Q 25 78 50 82 Q 75 78 75 55 Q 60 67 50 67 Q 40 67 25 55 Z" fill="#4B2C20" opacity="0.9" />
+                         <path d="M 42 57 Q 50 55 58 57 Q 50 59 42 57 Z" fill="#4B2C20" /></g>
+                    ) : isStubble ? <path d="M 25 55 Q 25 70 50 72 Q 75 70 75 55 Q 60 67 50 67 Q 40 67 25 55 Z" fill="#8D6E63" opacity="0.6" /> : null}
+
+                    <path d="M 43 61 Q 50 64 57 61" stroke="#333" fill="none" strokeWidth="2" strokeLinecap="round" />
+                  </g>
+                )}
+              </svg>
+            </div>
+          );
+        };
+
+        const EndSequence = ({ onReset }) => {
+          const [phase, setPhase] = useState('fireworks');
+          useEffect(() => {
+            const t1 = setTimeout(() => setPhase('fade-out'), 3500);
+            const t3 = setTimeout(() => setPhase('rip'), 4500);
+            return () => { clearTimeout(t1); clearTimeout(t3); };
+          }, []);
+          return (
+            <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center overflow-hidden">
+              {(phase === 'fireworks' || phase === 'fade-out') && (
+                <div className={`absolute inset-0 transition-opacity duration-1000 flex flex-col items-center justify-center ${phase === 'fireworks' ? 'opacity-100' : 'opacity-0'}`}>
+                  <div className="fw w-[200px] h-[200px]" style={{top: '20%', left: '30%'}}></div>
+                  <div className="fw w-[300px] h-[300px]" style={{top: '50%', left: '60%', animationDelay: '0.6s'}}></div>
+                  <div className="fw w-[180px] h-[180px]" style={{top: '70%', left: '20%', animationDelay: '1.2s'}}></div>
+                  <div className="relative z-10 text-center animate-pulse mt-20">
+                    <h2 className="text-[#FFDF00] text-7xl font-black uppercase italic tracking-tighter drop-shadow-[0_0_40px_rgba(255,223,0,0.8)]">PARABENS</h2>
+                    <p className="text-white mt-4 font-bold tracking-[0.5em] drop-shadow-md text-sm uppercase">Camiño Completado</p>
+                  </div>
+                </div>
+              )}
+              {phase === 'rip' && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center p-8 animate-in fade-in duration-1000">
+                  <div className="mb-12 opacity-80">
+                    <svg width="140" height="170" viewBox="0 0 100 120">
+                      <path d="M10 115 L10 40 C10 10 90 10 90 40 L90 115 Z" fill="#151515" stroke="#333" strokeWidth="2"/>
+                      <path d="M35 45 L65 45 M50 30 L50 70" stroke="#444" strokeWidth="6" strokeLinecap="round" />
+                      <rect x="0" y="112" width="100" height="8" fill="#0A0A0A" rx="2" />
+                      <text x="50" y="98" fill="#666" fontSize="10" fontWeight="900" textAnchor="middle" fontFamily="serif" letterSpacing="3">BENXA</text>
+                    </svg>
+                  </div>
+                  <h1 className="text-white text-7xl font-serif font-black mb-4 tracking-tighter drop-shadow-lg">R.I.P.</h1>
+                  <p className="text-zinc-500 uppercase font-black text-[11px] tracking-[0.6em] mb-20 text-center">
+                    Descansa en Paz.
+                  </p>
+                  <button onClick={onReset} className="group bg-white text-black px-12 py-6 rounded-full font-black uppercase text-xs tracking-[0.3em] hover:bg-amber-400 transition-all active:scale-95 flex items-center gap-4">
+                    <RefreshCcw size={18} /> Reiniciar Viaje
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        };
+
+        function App() {
+          const [user, setUser] = useState(null);
+          const [benxaLocation, setBenxaLocation] = useState(null);
+          const [isEmitting, setIsEmitting] = useState(false);
+          const [showMap, setShowMap] = useState(false);
+          const [mapZoom, setMapZoom] = useState(1);
+          const [mapPan, setMapPan] = useState({ x: 0, y: 0 });
+          const [isDraggingMap, setIsDraggingMap] = useState(false);
+          const [dragStartMap, setDragStartMap] = useState({ x: 0, y: 0 });
+          const [selectedStage, setSelectedStage] = useState(null);
+          const [completedStages, setCompletedStages] = useState({});
+          const [activeTab, setActiveTab] = useState('pending');
+
+          const completedCount = Object.keys(completedStages).length;
+          const totalStages = 99;
+          const progressPercentage = (completedCount / totalStages) * 100;
+          const isFinished = completedCount === totalStages;
+
+          const resetApp = () => { setCompletedStages({}); setActiveTab('pending'); setSelectedStage(null); };
+
+          useEffect(() => {
+            if (!auth) return;
+            const initAuth = async () => { try { await signInAnonymously(auth); } catch (e) { } };
+            initAuth();
+            const unsubscribe = onAuthStateChanged(auth, setUser);
+            return () => unsubscribe();
+          }, []);
+
+          useEffect(() => {
+            if (!user || !db) return;
+            const locRef = doc(db, 'artifacts', appId, 'public', 'data', 'locations', 'benxa_current');
+            const unsub = onSnapshot(locRef, (snap) => { if (snap.exists()) setBenxaLocation(snap.data()); });
+            return () => unsub();
+          }, [user]);
+
+          useEffect(() => {
+            let watchId;
+            if (isEmitting) {
+              // FORZAR ACTUALIZACIÓN LOCAL INDEPENDIENTE DE FIREBASE
+              watchId = navigator.geolocation.watchPosition((pos) => {
+                const newLoc = { 
+                  lat: pos.coords.latitude, 
+                  lng: pos.coords.longitude, 
+                  timestamp: new Date().toISOString() 
+                };
+                console.log("Nueva ubicación detectada:", newLoc);
+                setBenxaLocation(newLoc);
+                
+                // SUBIR SI FIREBASE ESTÁ LISTO
+                if (user && db) {
+                  const locRef = doc(db, 'artifacts', appId, 'public', 'data', 'locations', 'benxa_current');
+                  setDoc(locRef, newLoc).catch(e => console.error("Error subiendo GPS:", e));
+                }
+              }, (err) => { 
+                console.error("GPS Error:", err);
+                setIsEmitting(false);
+                let msg = "No se pudo obtener la ubicación.";
+                if (err.code === 1) msg = "Permiso denegado. Activa el GPS.";
+                else if (err.code === 2) msg = "Ubicación no disponible.";
+                else if (err.code === 3) msg = "Tiempo de espera agotado.";
+                alert(msg);
+              }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+            }
+            return () => { if (watchId) navigator.geolocation.clearWatch(watchId); }
+          }, [isEmitting, user, db]);
+
+          const currentList = useMemo(() => ALL_STAGES.filter(s => activeTab === 'completed' ? completedStages[s.id] : !completedStages[s.id]), [completedStages, activeTab]);
+
+          // FUNCIÓN PARA TESTEAR EL PUNTO (Simula ubicación cerca de Santiago)
+          const testLocation = () => {
+            setBenxaLocation({ lat: 42.88, lng: -8.54, timestamp: new Date().toISOString() });
+            setShowMap(true);
+          };
+
+          return (
+            <div className="min-h-screen bg-[#F8F9FA] text-slate-900 font-sans pb-40">
+              {isFinished && <EndSequence onReset={resetApp} />}
+              {showMap && (
+                <div className="fixed inset-0 z-[100] bg-slate-900 flex flex-col animate-in fade-in duration-300">
+                  <div className="p-6 flex justify-between items-center bg-slate-900 text-white shadow-md z-10 relative">
+                    <div><h2 className="text-xl font-black italic uppercase">Radar del Camiño</h2><p className="text-[10px] text-blue-400 font-bold uppercase tracking-widest">{benxaLocation ? 'Detección Activa' : 'Buscando GPS...'}</p></div>
+                    <button onClick={() => setShowMap(false)} className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center"><X size={20} /></button>
+                  </div>
+                  <div className="flex-1 relative bg-[#e0f2fe] overflow-hidden flex items-center justify-center cursor-grab touch-none" onMouseDown={(e) => { if(mapZoom > 1) { setIsDraggingMap(true); setDragStartMap({x: e.clientX - mapPan.x, y: e.clientY - mapPan.y}); } }} onMouseMove={(e) => { if(isDraggingMap) setMapPan({x: e.clientX - dragStartMap.x, y: e.clientY - dragStartMap.y}); }} onMouseUp={() => setIsDraggingMap(false)}>
+                    <div style={{ transform: `translate(${mapPan.x}px, ${mapPan.y}px) scale(${mapZoom})`, transition: isDraggingMap ? 'none' : 'transform 0.1s' }} className="w-full h-full origin-center flex items-center justify-center">
+                      <svg viewBox="0 0 100 50" className="w-full h-full object-contain">
+                        <rect width="100" height="50" fill="#e0f2fe" />
+                        <path d={landPath} fill="#f8fafc" stroke="#cbd5e1" strokeWidth="0.15" />
+                        <path d={islandsPath} fill="#f8fafc" stroke="#cbd5e1" strokeWidth="0.15" />
+                        <path d={"M " + stagePoints.map(p => `${projX(p.lng)},${projY(p.lat)}`).join(" L ")} fill="none" stroke="#60a5fa" strokeWidth="0.4" opacity="0.7" />
+                        {stagePoints.map((pt, idx) => <circle key={idx} cx={projX(pt.lng)} cy={projY(pt.lat)} r={0.2} fill="#2563eb" />)}
+                        {keyCoords.map((pt, idx) => <g key={idx}> {pt.type === 'finish' ? MapIcons.finish(projX(pt.lng), projY(pt.lat)) : <circle cx={projX(pt.lng)} cy={projY(pt.lat)} r={0.4} fill="#475569" />} <text x={projX(pt.lng) + pt.labelOffset[0]} y={projY(pt.lat) + pt.labelOffset[1]} fontSize="1.1" fill="#0f172a" fontWeight="700" textAnchor={pt.anchor}>{pt.name}</text> </g>)}
+                        
+                        {/* PUNTO DE UBICACIÓN REAL MEJORADO */}
+                        {benxaLocation && (
+                          <g transform={`translate(${projX(benxaLocation.lng)}, ${projY(benxaLocation.lat)})`}>
+                            <circle r="3" fill="#ef4444" className="animate-ping" opacity="0.4" />
+                            <circle r="1" fill="#ef4444" />
+                            <circle r="0.4" fill="white" className="animate-pulse" />
+                          </g>
+                        )}
+                      </svg>
+                    </div>
+                    <div className="absolute bottom-8 right-6 flex flex-col gap-3">
+                      <button onClick={() => setMapZoom(z => Math.min(z * 1.5, 10))} className="bg-white w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-2xl font-black">+</button>
+                      <button onClick={() => { const nz = Math.max(mapZoom / 1.5, 1); setMapZoom(nz); if(nz===1) setMapPan({x:0, y:0}); }} className="bg-white w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-2xl font-black" >-</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/50 px-6 py-5 shadow-sm">
+                <div className="flex justify-between items-center max-w-2xl mx-auto">
+                  <div className="flex items-center gap-4">
+                    <div onClick={testLocation} className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center shadow-lg text-amber-400 font-serif font-bold text-2xl cursor-pointer">Ñ</div>
+                    <h1 className="text-xl font-black tracking-tighter uppercase">CAMIÑO CON BENXA</h1>
+                  </div>
+                  <button onClick={() => setIsEmitting(!isEmitting)} className={`p-3 rounded-full shadow-sm transition-all ${isEmitting ? 'bg-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.5)] animate-pulse' : 'bg-slate-100 text-slate-400'}`} title={isEmitting ? "Conectado" : "Conectar Dispositivo"}><Radio size={18} /></button>
+                </div>
+              </header>
+              <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+                <div className="flex justify-center"><button onClick={() => { setShowMap(true); setMapZoom(1); setMapPan({x:0, y:0}); }} className="bg-blue-600 text-white px-6 py-3 rounded-full shadow-md flex items-center justify-center gap-2 font-bold uppercase tracking-wider text-sm"><Map size={18} /> ¿Dónde está Benxa?</button></div>
+                <div className="flex bg-white p-1.5 rounded-full border border-slate-200 shadow-sm">
+                  <button onClick={() => setActiveTab('pending')} className={`flex-1 py-3.5 rounded-full flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeTab === 'pending' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}><ListTodo size={14} /> Pendientes</button>
+                  <button onClick={() => setActiveTab('completed')} className={`flex-1 py-3.5 rounded-full flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeTab === 'completed' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}><History size={14} /> Completadas</button>
+                </div>
+                <div className="grid grid-cols-1 gap-6">
+                  {currentList.map(stage => (
+                    <div key={stage.id} onClick={() => setSelectedStage(stage)} className="group relative overflow-hidden bg-white rounded-[2.5rem] border border-slate-100 shadow-sm transition-all cursor-pointer active:scale-[0.98]">
+                      <div className="relative h-56 w-full overflow-hidden">
+                        <img src={stage.img} className="w-full h-full object-cover" loading="lazy" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent" />
+                        <div className="absolute bottom-5 left-6 right-6 flex justify-between items-end">
+                          <div className="text-left">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="bg-white/20 backdrop-blur-md text-white text-[9px] font-black px-3 py-1 rounded-md uppercase tracking-widest border border-white/20">{`${stage.date.split('-')[2]} ${getMesEspanol(stage.date)}`}</span>
+                              <span className="bg-black/40 backdrop-blur-md text-white text-[9px] font-black px-3 py-1 rounded-md uppercase tracking-widest">{`DÍA ${stage.id}`}</span>
+                            </div>
+                            <h3 className="text-2xl font-black text-white leading-none uppercase italic tracking-tighter">{stage.title}</h3>
+                          </div>
+                          <button onClick={(e) => { e.stopPropagation(); setCompletedStages(prev => { const ns = {...prev}; if(ns[stage.id]) delete ns[stage.id]; else ns[stage.id]=true; return ns; }); }} className={`p-4 rounded-2xl transition-all shadow-2xl ${completedStages[stage.id] ? "bg-emerald-500 text-white" : "bg-white/10 backdrop-blur-md text-white border border-white/20"}`}><CheckCircle2 size={24} /></button>
+                        </div>
+                      </div>
+                      <div className="p-6 flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-1.5"><Compass size={16} className="text-amber-500" /><span className="text-[10px] font-black text-slate-800 uppercase tracking-widest">{`${stage.km} KM`}</span></div>
+                          <div className="flex items-center gap-1.5 border-l border-slate-200 pl-4"><Footprints size={16} className="text-blue-500" /><span className="text-[10px] font-black text-slate-800 uppercase tracking-widest">{`${stage.steps.toLocaleString()} PASOS`}</span></div>
+                        </div>
+                        <div className="flex items-center gap-1 text-slate-300 font-black text-[9px] uppercase tracking-widest">Ver <ChevronRight size={16} /></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </main>
+              {selectedStage && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-sm">
+                  <div className="bg-white w-full max-w-lg rounded-[3rem] overflow-hidden shadow-2xl flex flex-col animate-in zoom-in-95 duration-300 border border-white/20">
+                    <div className="relative h-32 shrink-0"><img src={selectedStage.img} className="w-full h-full object-cover opacity-90" /><button onClick={() => setSelectedStage(null)} className="absolute top-4 right-4 w-10 h-10 bg-black/20 backdrop-blur-xl rounded-full flex items-center justify-center text-white"><X size={18} /></button></div>
+                    <div className="p-6 pt-0 space-y-5 flex flex-col">
+                      <div className="text-center pt-2">
+                        <p className="text-[9px] font-black text-amber-600 uppercase tracking-[0.4em] mb-1">{`ETAPA ${selectedStage.id}`}</p>
+                        <h2 className="text-2xl font-black text-slate-900 uppercase italic tracking-tighter">{selectedStage.title}</h2>
+                      </div>
+                      <div className="w-full space-y-4">
+                        <div className="bg-slate-50 p-4 rounded-[2rem] border border-slate-100 flex items-center justify-between">
+                          <div className="flex-1 text-left"><p className="text-[8px] font-black text-slate-400 uppercase">Origen</p><p className="text-xs font-black truncate">{selectedStage.from}</p></div>
+                          <ArrowRight size={18} className="text-amber-500 mx-3 shrink-0" />
+                          <div className="flex-1 text-right"><p className="text-[8px] font-black text-slate-400 uppercase">Destino</p><p className="text-xs font-black truncate">{selectedStage.to}</p></div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="bg-blue-50/50 p-3 rounded-2xl flex items-center gap-3"><Footprints size={18} className="text-blue-500" /><div><p className="text-[7px] font-black text-blue-400 uppercase">Esfuerzo</p><p className="text-xs font-black text-blue-900">{`${selectedStage.steps.toLocaleString()} pasos`}</p></div></div>
+                          <div className="bg-amber-50/50 p-3 rounded-2xl flex items-center gap-3"><Compass size={18} className="text-amber-500" /><div><p className="text-[7px] font-black text-amber-400 uppercase">Distancia</p><p className="text-xs font-black text-amber-900">{`${selectedStage.km} KM`}</p></div></div>
+                        </div>
+                        <button onClick={() => window.open(`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(selectedStage.from)}&destination=${encodeURIComponent(selectedStage.to)}&travelmode=walking`, '_blank')} className="w-full bg-slate-900 text-white py-4 rounded-[2rem] font-black text-[11px] tracking-widest flex items-center justify-center gap-3 uppercase shadow-xl"><Navigation size={16} /> Navegar</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <footer className="fixed bottom-0 inset-x-0 z-40 p-4 flex justify-center pointer-events-none">
+                <div className="max-w-[300px] w-full bg-slate-900/95 backdrop-blur-3xl text-white rounded-[3rem] p-3 shadow-2xl pointer-events-auto border border-white/10 relative overflow-hidden flex items-center gap-4">
+                  <div className="absolute top-0 left-0 h-1.5 bg-gradient-to-r from-amber-400 to-amber-600 transition-all duration-1000" style={{ width: `${progressPercentage}%` }} />
+                  <PeregrinoAvatar progress={progressPercentage} />
+                  <div className="flex-1 pr-4 text-center">
+                    <p className="text-[8px] font-black text-white/40 uppercase mb-1">EVOLUCIÓN</p>
+                    <div className="flex items-center justify-center gap-3">
+                      <span className="text-2xl font-black leading-none tracking-tighter">{completedCount}<span className="text-[10px] text-white/30 font-bold ml-0.5 uppercase tracking-widest"> / 99</span></span>
+                      <span className="text-[9px] font-black text-amber-500 bg-amber-500/10 px-2 py-1 rounded-md border border-amber-500/20">{`${Math.round(progressPercentage)}%`}</span>
+                    </div>
+                  </div>
+                </div>
+              </footer>
+            </div>
+          );
+        }
+
+        const rootE = document.getElementById('root');
+        if (rootE) {
+            const root = ReactDOM.createRoot(rootE);
+            root.render(<App />);
+        }
+    </script>
+</body>
+</html>
