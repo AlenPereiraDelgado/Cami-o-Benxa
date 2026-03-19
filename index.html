@@ -267,15 +267,14 @@
           const [benxaLocation, setBenxaLocation] = useState(null);
           const [isEmitting, setIsEmitting] = useState(false);
           const [showMap, setShowMap] = useState(false);
-          const [mapZoom, setMapZoom] = useState(1);
-          const [mapPan, setMapPan] = useState({ x: 0, y: 0 });
-          const [isDraggingMap, setIsDraggingMap] = useState(false);
-          const [dragStartMap, setDragStartMap] = useState({ x: 0, y: 0 });
           const [selectedStage, setSelectedStage] = useState(null);
           const [completedStages, setCompletedStages] = useState({});
           const [activeTab, setActiveTab] = useState('pending');
 
           const [isAdmin, setIsAdmin] = useState(false);
+
+          const mapRef = React.useRef(null);
+          const zoomRef = React.useRef(null);
 
           const completedCount = Object.keys(completedStages).length;
           const totalStages = 99;
@@ -298,6 +297,29 @@
             });
           }, []);
 
+          // --- CONFIGURACIÓN DE ZOOM D3 (Móvil y Desktop) ---
+          useEffect(() => {
+            if (!mapRef.current) return;
+            const svg = d3.select(mapRef.current);
+            const g = svg.select("g.map-content");
+
+            const zoom = d3.zoom()
+              .scaleExtent([1, 8])
+              .on("zoom", (event) => {
+                g.attr("transform", event.transform);
+              });
+
+            svg.call(zoom);
+            zoomRef.current = zoom;
+          }, [showMap]);
+
+          const handleZoom = (type) => {
+            if (!zoomRef.current || !mapRef.current) return;
+            const svg = d3.select(mapRef.current);
+            const scaleFactor = type === 'in' ? 1.4 : 0.7;
+            svg.transition().duration(300).call(zoomRef.current.scaleBy, scaleFactor);
+          };
+
           // --- SISTEMA DE PROYECCIÓN (ALYRA STYLE) ---
           const { projection, pathFn } = useMemo(() => {
             const w = 1000, h = 500;
@@ -318,8 +340,22 @@
 
           useEffect(() => {
             if (!user || !db) return;
-            const locRef = doc(db, 'artifacts', appId, 'public', 'data', 'locations', 'benxa_current');
-            const unsub = onSnapshot(locRef, (snap) => { if (snap.exists()) setBenxaLocation(snap.data()); });
+            const locRef = doc(db, appId, 'benxa_current');
+            const unsub = onSnapshot(locRef, (snapshot) => {
+              if (snapshot.exists()) {
+                const data = snapshot.data();
+                // EXPIRACIÓN DE SEÑAL: Solo mostrar si tiene menos de 30 min
+                const lastUpdate = new Date(data.timestamp).getTime();
+                const now = Date.now();
+                if (now - lastUpdate < 30 * 60 * 1000) {
+                  setBenxaLocation(data);
+                } else {
+                  setBenxaLocation(null);
+                }
+              } else {
+                setBenxaLocation(null);
+              }
+            });
             return () => unsub();
           }, [user]);
 
@@ -365,11 +401,10 @@
                     <div><h2 className="text-xl font-black italic uppercase">Radar del Camiño</h2><p className="text-[10px] text-blue-400 font-bold uppercase tracking-widest">{benxaLocation ? 'Detección Activa' : 'Buscando GPS...'}</p></div>
                     <button onClick={() => setShowMap(false)} className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center"><X size={20} /></button>
                   </div>
-                  <div className="flex-1 relative bg-[#e0f2fe] overflow-hidden flex items-center justify-center cursor-grab touch-none" onMouseDown={(e) => { if(mapZoom > 1) { setIsDraggingMap(true); setDragStartMap({x: e.clientX - mapPan.x, y: e.clientY - mapPan.y}); } }} onMouseMove={(e) => { if(isDraggingMap) setMapPan({x: e.clientX - dragStartMap.x, y: e.clientY - dragStartMap.y}); }} onMouseUp={() => setIsDraggingMap(false)}>
-                    <div style={{ transform: `translate(${mapPan.x}px, ${mapPan.y}px) scale(${mapZoom})`, transition: isDraggingMap ? 'none' : 'transform 0.1s' }} className="w-full h-full origin-center flex items-center justify-center">
-                      <svg viewBox="0 0 1000 500" className="w-full h-full object-contain">
-                        <rect width="1000" height="500" fill="#e0f2fe" />
-                        
+                  <div className="flex-1 relative bg-[#e0f2fe] overflow-hidden flex items-center justify-center">
+                    <svg ref={mapRef} viewBox="0 0 1000 500" className="w-full h-full object-contain cursor-grab active:cursor-grabbing touch-none">
+                      <rect width="1000" height="500" fill="#e0f2fe" />
+                      <g className="map-content">
                         {/* PAÍSES CON ESTILO ALYRA */}
                         {worldData && worldData.map((feature, i) => (
                           <path 
@@ -433,11 +468,11 @@
                             </g>
                           );
                         })()}
-                      </svg>
-                    </div>
+                      </g>
+                    </svg>
                     <div className="absolute bottom-8 right-6 flex flex-col gap-3">
-                      <button onClick={() => setMapZoom(z => Math.min(z * 1.5, 10))} className="bg-white w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-2xl font-black">+</button>
-                      <button onClick={() => { const nz = Math.max(mapZoom / 1.5, 1); setMapZoom(nz); if(nz===1) setMapPan({x:0, y:0}); }} className="bg-white w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-2xl font-black" >-</button>
+                      <button onClick={() => handleZoom('in')} className="p-3 bg-white/90 backdrop-blur rounded-xl shadow-lg text-slate-700 hover:bg-white active:scale-95 transition-all"><Radio size={20} className="rotate-45" /></button>
+                      <button onClick={() => handleZoom('out')} className="p-3 bg-white/90 backdrop-blur rounded-xl shadow-lg text-slate-700 hover:bg-white active:scale-95 transition-all"><X size={20} /></button>
                     </div>
                   </div>
                 </div>
